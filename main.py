@@ -18,6 +18,7 @@ config = os.environ
 _LOGNAME = 'main'
 expected_files = {"main":"5-digit Commercial.csv","multi":"5-digit Multi-county.csv"}
 expected_tables = {"main":"master_zipcode_subscription","multi":"master_zipcode_subscription_multi"}
+
 def prepare_download():
 	now = datetime.now().strftime("%b").lower()
 	year = datetime.now().strftime("%Y").lower()
@@ -28,12 +29,26 @@ def check():
 	rpt = []
 	for dbc in db_connections:
 		cn = dbc.engine.connect()
-		for table in ['[dbo].[master_zipcode_subscription]','[dbo].[master_zipcode_subscription_multi]']:
-				rc = cn.execute(text(f"select count(1) as c from {table};")).first()
+		for table in ['[master_zipcode_subscription]','[master_zipcode_subscription_multi]']:
+				rc = cn.execute(text(f"select count(1) as c from {dbc.schema}.{table};")).first()
 				rpt.append({"server":dbc.engine.url.host, "database":dbc.engine.url.database, "table":table, "count":rc})
 	df = pd.DataFrame(rpt)				
 	print(df)
-	return rpt				
+	return rpt
+def saveToTable(l, dbc:SqlConnectionObject, df:pd.DataFrame, toschema:str, totable:str):
+	l.info(f"starting {schema}.{table} complete")	
+	cn = dbc.engine.connect()
+	trans = cn.begin()
+	try:
+		cn.execute(text(f"truncate table [{toschema}].[{totable}];"))
+		trans.commit()
+	except Exception as stEe:
+		trans.rollback()
+		l.error(f"Had to Rollback: {stEe}")
+		return
+	#l.info(f"{table} truncated")
+	df.to_sql(name = totable, schema = toschema,con = dbc.engine, index=False, if_exists='append')
+	l.info(f"importing {schema}.{table} complete")			
 def run():
 	l = logging.getLogger(_LOGNAME)
 	downloads = prepare_download()
@@ -55,6 +70,7 @@ def run():
 		import_file = {"unzipdir":directory,"importfrom":f"{directory}/{expected_files[unzip['type']]}"} 
 		unzip_results.append({**unzip, **import_file})	
 	l.info(f"run(): archiving main db")
+	data_obj = db_connections[0]
 	for importfile in unzip_results:
 		table = expected_tables[importfile['type']]
 		l.info(f"run(): archiving current {table} data...")
@@ -76,18 +92,19 @@ def run():
 		df["svn"] = datetime.now().strftime("%Y%m")
 		for dbc in db_connections:
 			l.info(f"saving {source} to {dbc.engine.url.host}.{dbc.engine.url.database}.dbo.{table}")
-			cn = dbc.engine.connect()
-			trans = cn.begin()
-			try:
-				cn.execute(text(f"truncate table [dbo].[{table}];"))
-				trans.commit()
-			except Exception as stEe:
-				trans.rollback()
-				l.error(f"Had to Rollback: {stEe}")
-				continue
-			l.info(f"{table} truncated")
-			df.to_sql(name = table, schema = 'dbo',con = dbc.engine, index=False, if_exists='append')
-			l.info(f"importing complete")
+			saveToTable(l, dbc, df, dbc.schema, table)
+			#cn = dbc.engine.connect()
+			#trans = cn.begin()
+			#try:
+			#	cn.execute(text(f"truncate table [dbo].[{table}];"))
+			#	trans.commit()
+			#except Exception as stEe:
+			#	trans.rollback()
+			#	l.error(f"Had to Rollback: {stEe}")
+			#	continue
+			#l.info(f"{table} truncated")
+			#df.to_sql(name = table, schema = 'dbo',con = dbc.engine, index=False, if_exists='append')
+			#l.info(f"importing complete")
 	l.info("run() complete...")
 if __name__ == "__main__":
 	print("running...")

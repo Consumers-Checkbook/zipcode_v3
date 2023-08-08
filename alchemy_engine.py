@@ -8,6 +8,7 @@ import json
 load_dotenv()
 config = os.environ
 logging = custom_logger('main')
+_DATABASES = json.loads(config["sql.databases"]) 
 def makeConnection(name):
 	connection = config["sql.template"]
 	dbs = json.loads(config["sql.databases"])[name]
@@ -31,9 +32,14 @@ class SqlConnectionObject():
 		self.connection = makeConnection(self.name)
 		self.engine = makeEngine(self.connection)
 		self.session  = makeSession(self.engine)
-
-data_obj =SqlConnectionObject("main")
-lib_obj =SqlConnectionObject("library")
-hrg_obj =SqlConnectionObject("HRG")
-hie_obj =SqlConnectionObject("HIE")
-db_connections = [data_obj,lib_obj, hrg_obj, hie_obj]
+		self.schema = ""
+db_connections = []
+for dbs in _DATABASES.keys():
+	_ = SqlConnectionObject(dbs)
+	_.schema = _DATABASES[dbs]["schema"]
+	db_connections.append(_)
+#data_obj =SqlConnectionObject("main")
+#lib_obj =SqlConnectionObject("library")
+#hrg_obj =SqlConnectionObject("HRG")
+#hie_obj =SqlConnectionObject("HIE")
+#db_connections = [data_obj,lib_obj, hrg_obj, hie_obj]
