@@ -30,13 +30,13 @@ def check():
 	for dbc in db_connections:
 		cn = dbc.engine.connect()
 		for table in ['[master_zipcode_subscription]','[master_zipcode_subscription_multi]']:
-				rc = cn.execute(text(f"select count(1) as c from {dbc.schema}.{table};")).first()
+				rc = cn.execute(text(f"select [svn], count(1) as c from {dbc.schema}.{table} group by [svn];")).first()
 				rpt.append({"server":dbc.engine.url.host, "database":dbc.engine.url.database, "table":table, "count":rc})
 	df = pd.DataFrame(rpt)				
 	print(df)
 	return rpt
 def saveToTable(l, dbc:SqlConnectionObject, df:pd.DataFrame, toschema:str, totable:str):
-	l.info(f"starting {schema}.{table} complete")	
+	l.info(f"starting {toschema}.{totable} complete")	
 	cn = dbc.engine.connect()
 	trans = cn.begin()
 	try:
@@ -48,7 +48,7 @@ def saveToTable(l, dbc:SqlConnectionObject, df:pd.DataFrame, toschema:str, totab
 		return
 	#l.info(f"{table} truncated")
 	df.to_sql(name = totable, schema = toschema,con = dbc.engine, index=False, if_exists='append')
-	l.info(f"importing {schema}.{table} complete")			
+	l.info(f"importing {toschema}.{totable} complete")			
 def run():
 	l = logging.getLogger(_LOGNAME)
 	downloads = prepare_download()
