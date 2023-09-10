@@ -27,7 +27,8 @@ def prepare_download():
 	return [{"type":"main","filename":filename, "saveto":f"{config['savedir']}/latestZipDatabase.zip"}, {"type":"multi","filename":multifilename,"saveto":f"{config['savedir']}/latestMultiZipDatabase.zip"}]
 def check():
 	rpt = []
-	for dbc in db_connections:
+	for db_name in db_connections:
+		dbc = db_connections[db_name]
 		cn = dbc.engine.connect()
 		for table in ['[master_zipcode_subscription]','[master_zipcode_subscription_multi]']:
 				rc = cn.execute(text(f"select [svn], count(1) as c from {dbc.schema}.{table} group by [svn];")).first()
@@ -70,7 +71,7 @@ def run():
 		import_file = {"unzipdir":directory,"importfrom":f"{directory}/{expected_files[unzip['type']]}"} 
 		unzip_results.append({**unzip, **import_file})	
 	l.info(f"run(): archiving main db")
-	data_obj = db_connections[0]
+	data_obj = db_connections["main"]
 	for importfile in unzip_results:
 		table = expected_tables[importfile['type']]
 		l.info(f"run(): archiving current {table} data...")
@@ -90,7 +91,8 @@ def run():
 		table = expected_tables[importfile['type']]
 		df = pd.read_csv(filepath_or_buffer = source, dtype = str, keep_default_na=False)
 		df["svn"] = datetime.now().strftime("%Y%m")
-		for dbc in db_connections:
+		for db_name in db_connections:
+			dbc = db_connections[db_name]
 			l.info(f"saving {source} to {dbc.engine.url.host}.{dbc.engine.url.database}.dbo.{table}")
 			saveToTable(l, dbc, df, dbc.schema, table)
 			#cn = dbc.engine.connect()
