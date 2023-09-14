@@ -1,5 +1,6 @@
 from zipfile import ZipFile
 import subprocess
+import chardet
 import os
 def unzipTo(zipfile, unzip_to) -> list[str]:
 	if not os.path.exists(os.path.dirname(unzip_to)):
@@ -9,6 +10,11 @@ def unzipTo(zipfile, unzip_to) -> list[str]:
 	files = zipfile_pointer.namelist()
 	zipfile_pointer.close()
 	return files
+def detectEncoding(file)->str:
+	with open(file, 'rb') as f:
+		raw = f.read(4)
+	encoding = chardet.detect(raw)
+	return encoding["encoding"]
 def downloadCurl(hyperlink, localFile)->dict:
 	#make sure to pad the hyperlink with https://
 	if not os.path.exists(os.path.dirname(localFile)):
