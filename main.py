@@ -111,3 +111,5 @@ def run():
 if __name__ == "__main__":
 	print("running...")
 	run()
+	print("main task complete")
+	df = check()
