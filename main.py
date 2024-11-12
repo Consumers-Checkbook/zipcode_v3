@@ -89,7 +89,13 @@ def run():
 	for importfile in unzip_results:
 		source = importfile["importfrom"]
 		table = expected_tables[importfile['type']]
-		df = pd.read_csv(filepath_or_buffer = source, dtype = str, keep_default_na=False)
+		try:
+			_encoding = detectEncoding(name)
+		except Exception as encE:
+			log.error(f"saveToTable(): encoding: {encE}")
+			_encoding = 'utf-8'
+			continue
+		df = pd.read_csv(filepath_or_buffer = source, encoding=_encoding, dtype = str, keep_default_na=False)
 		df["svn"] = datetime.now().strftime("%Y%m")
 		for db_name in db_connections:
 			dbc = db_connections[db_name]
